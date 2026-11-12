@@ -1,7 +1,7 @@
 // First run: a short wizard that makes HQ the owner's own. Every choice saves as it's made and the
 // preview on the right (and the whole app behind it) updates live. Everything can be changed later in Settings.
 import { icon } from '../lib/icons.js';
-import { esc } from '../lib/ui.js';
+import { esc, api } from '../lib/ui.js';
 import { logoHtml } from '../lib/theme.js';
 import { state, setTitle, saveSettings, pageLabel, appTitle } from '../app.js';
 import { mountProfile, mountTheme, mountLogo, mountPages, mountAiChoice, mountAiSetup, mountYouTube, mountFolders, mountTools } from '../lib/personalize.js';
@@ -115,7 +115,11 @@ export default {
         const s = state.settings;
         const ai = s.ai.enabled.map((x) => state.providers?.[x]?.name || x).join(', ');
         body.innerHTML = `<h2>All set${s.profile.name ? `, <span class="grad-text">${esc(s.profile.name)}</span>` : ''}.</h2>
-          <p class="lede">Your ${esc(appTitle())} is ready. A shortcut with your logo is on the desktop.</p>
+          <p class="lede">Your ${esc(appTitle())} is ready.</p>
+          <section class="card stack" id="sc-card" hidden>
+            <label class="row" style="justify-content:space-between"><span>Put ${esc(appTitle())} on my Desktop (with my logo)</span><span class="switch"><input type="checkbox" id="sc-d" checked><span></span></span></label>
+            <label class="row" style="justify-content:space-between"><span>Add ${esc(appTitle())} to the Start menu</span><span class="switch"><input type="checkbox" id="sc-s" checked><span></span></span></label>
+          </section>
           <section class="card"><dl class="kv">
             <dt>Pages</dt><dd>${s.nav.filter((n) => n.on).map((n) => esc(pageLabel(n.id))).join(' · ')}</dd>
             <dt>AI</dt><dd>${esc(ai)} <span class="dim">(main: ${esc(state.providers?.[s.ai.primary]?.name || s.ai.primary)})</span></dd>
@@ -128,12 +132,15 @@ export default {
             <li>Settings → Data lets you export your setup or start over.</li>
           </ul></section>`;
       }
+      if (id === 'done') api('/api/shortcuts').then((st) => { if (st.supported && $('#sc-card')) $('#sc-card').hidden = false; }).catch(() => {});
       root.querySelector('.wiz-main').scrollTop = 0;
       history.replaceState(null, '', `#/welcome?step=${step}`);
     }
 
     async function finish() {
       $('#next').disabled = true;
+      const d = $('#sc-d'), sm = $('#sc-s');
+      if (d && !$('#sc-card').hidden && (d.checked || sm.checked)) await api('/api/shortcuts', { method: 'POST', body: { desktop: d.checked, startMenu: sm.checked } }).catch(() => {});
       await saveSettings({ setupDone: true });
       location.hash = '#/';
     }

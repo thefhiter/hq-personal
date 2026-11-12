@@ -1,5 +1,5 @@
 // Helper programs: HQ checks what is installed and can fetch the two it needs for music and
-// backgrounds (yt-dlp and ffmpeg) into its own runtime folder, without admin rights or PATH edits.
+// backgrounds (yt-dlp and ffmpeg) into its data folder (%LOCALAPPDATA%/HQ/tools), without admin rights or PATH edits.
 import path from 'node:path';
 import os from 'node:os';
 import { promises as fs, createWriteStream, existsSync } from 'node:fs';
@@ -63,7 +63,13 @@ async function download(url, file, id, expected) {
   await pipeline(body, createWriteStream(file));
 }
 
-/** Install or update yt-dlp / ffmpeg into HQ's runtime folder. */
+/** Some antivirus programs remove freshly downloaded tools; say so clearly instead of failing later. */
+async function quarantineCheck(file, name) {
+  await new Promise((r) => setTimeout(r, 1500));
+  if (!existsSync(file)) throw new Error(`Your antivirus removed ${name} right after the download. It is a well-known free tool from its official page; allow it in your antivirus (for Windows Security: Protection history → Allow), then press Install again.`);
+}
+
+/** Install or update yt-dlp / ffmpeg into HQ's tools folder (in the data folder, kept across updates). */
 export async function installTool(id) {
   if (!IS_WIN) throw Object.assign(new Error('Automatic install is available on Windows. Install it with your package manager.'), { status: 400 });
   if (!SOURCES[id]) throw Object.assign(new Error('Unknown tool'), { status: 400 });
@@ -78,6 +84,7 @@ export async function installTool(id) {
         const f = path.join(tmp, 'yt-dlp.exe');
         await download(SOURCES[id].url, f, id, SOURCES[id].size);
         await fs.copyFile(f, path.join(BIN, 'yt-dlp.exe'));
+        await quarantineCheck(path.join(BIN, 'yt-dlp.exe'), 'yt-dlp');
       } else {
         const zip = path.join(tmp, 'ffmpeg.zip');
         await download(SOURCES[id].url, zip, id, SOURCES[id].size);
@@ -95,6 +102,7 @@ export async function installTool(id) {
         await fs.rm(FFDIR, { recursive: true, force: true });
         await fs.mkdir(FFDIR, { recursive: true });
         for (const f of await fs.readdir(bin)) if (f !== 'ffplay.exe') await fs.copyFile(path.join(bin, f), path.join(FFDIR, f));
+        await quarantineCheck(path.join(FFDIR, 'ffmpeg.exe'), 'FFmpeg');
       }
       jobs[id] = { status: 'done', progress: 100, error: null };
     } catch (e) {

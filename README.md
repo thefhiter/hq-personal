@@ -7,11 +7,12 @@
 ## Download and install
 
 1. Download **`HQ-Personal-<version>-win-x64.zip`** from the [latest release](../../releases/latest).
-2. Unzip it and double-click **`Install HQ.cmd`**.
+2. Unzip it and move the **`HQ`** folder somewhere it can stay (for example *Documents*).
+3. Double-click **`Start HQ.cmd`** inside it.
    If Windows shows *“Windows protected your PC”*, click **More info → Run anyway**.
-3. HQ opens and a two-minute setup makes it yours. A shortcut with **your** logo lands on the Desktop and in the Start menu.
+4. HQ opens and a two-minute setup makes it yours. On the last step it can put HQ, with **your** logo, on the Desktop and in the Start menu.
 
-No admin rights needed. If the PC has no Node.js, the installer downloads the official build (checked against nodejs.org's checksums) into HQ's own folder.
+Nothing is installed into Windows: no installer, no admin rights, no registry changes, no background service. HQ runs from its folder with the Node.js included in `runtime\node` (the official build, signed by the OpenJS Foundation).
 
 ## Make it yours
 
@@ -87,12 +88,21 @@ A built-in **My notes** folder, plus any folder of Markdown notes (an **Obsidian
 ## Requirements
 - Windows 10 or 11 (64-bit), internet for YouTube and AI.
 - Chrome or Edge (HQ opens as its own app window; Edge comes with Windows).
-- Installed automatically when missing: Node.js (by the installer), **yt-dlp** and **FFmpeg** (one click inside HQ).
+- Included: Node.js. One click inside HQ: **yt-dlp** and **FFmpeg** (downloaded from their official pages into `%LOCALAPPDATA%\HQ\tools`).
 - Optional: Git (project history), GitHub CLI (shows which projects are on GitHub), VS Code (open projects).
 
 ## Update and uninstall
-- **Update:** unzip the new version and run `Install HQ.cmd` again. Your data and installed tools are kept.
-- **Uninstall:** Start menu → HQ → **Uninstall HQ** (you choose whether to keep your data).
+- **Update:** close HQ, replace the `HQ` folder with the new one, start it again. Your data, helper programs and AI terminal apps are kept (they live in `%LOCALAPPDATA%\HQ`), and the shortcuts follow the new folder.
+- **Remove:** Settings → Your data → turn off the shortcuts, close HQ, delete the `HQ` folder (and `%LOCALAPPDATA%\HQ` to delete your data too).
+
+## Antivirus
+HQ is built to look like what it is, a normal app:
+- **No installer script.** No PowerShell, no VBScript, no hidden windows; nothing is downloaded or unpacked at install time.
+- **`Start HQ.cmd` only runs the bundled `node.exe`**, which is digitally signed by the OpenJS Foundation.
+- Shortcuts are made only when the owner asks, by HQ itself (no script host).
+- The release build checks Node.js against nodejs.org's checksums and its signature.
+
+HQ itself is not code-signed, so Windows SmartScreen shows *“Windows protected your PC”* the first time (**More info → Run anyway**). Some antivirus programs are wary of **yt-dlp** (a popular free tool HQ downloads on request for music): if one removes it, HQ says so; allow it in the antivirus and press Install again. A code-signing certificate would remove the SmartScreen prompt entirely.
 
 ## For developers
 
@@ -115,14 +125,16 @@ server/      Node HTTP server, no framework
   config.mjs   settings + API keys, validation, AI provider list
   ai.mjs       chat: Anthropic SDK for Claude, OpenAI-compatible API for the rest
   terminal.mjs Claude Code / Codex / Gemini CLI in a real terminal (node-pty)
-  tools.mjs    detects and installs yt-dlp + FFmpeg into runtime\
+  tools.mjs    detects and installs yt-dlp + FFmpeg into %LOCALAPPDATA%\HQ\tools
+  shortcuts.mjs Desktop / Start-menu shortcuts written directly in the .lnk format
   media.mjs    YouTube search, MP3 + HD-clip downloads
   catalog.mjs  projects from the chosen folders; git.mjs history; vault.mjs notes
 public/      the page (vanilla JS modules, no build step)
   js/lib/theme.js        themes, palette from any color, logo marks, icon renderer
   js/lib/personalize.js  setup + settings building blocks
   js/views/              one file per page (welcome, home, focus, music, ai, …)
-scripts/     install.ps1, uninstall.ps1, start-hq.ps1, HQ.vbs, build-release.ps1, smoke.mjs
+launcher.mjs starts the server in the background and opens the app window (used by Start HQ.cmd and the shortcuts)
+scripts/     build-release.ps1 (package + bundled Node.js), make-icon.mjs, smoke.mjs
 ```
 
 ## Third-party software

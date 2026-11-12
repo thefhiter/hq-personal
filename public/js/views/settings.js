@@ -37,6 +37,7 @@ export default {
           <label class="btn btn-ghost btn-sm">${icon('upload', 'ico-sm')}Import a setup<input type="file" id="import" accept="application/json,.json" hidden></label>
           <a class="btn btn-ghost btn-sm" href="#/welcome">${icon('refresh', 'ico-sm')}Run the setup again</a></div>
           <p class="help">Export saves your choices (not your API keys or music) to a file you can import on another PC.</p>
+          <div id="sc" class="stack" style="margin-top:12px"></div>
           <div class="card danger-zone" style="margin-top:12px;box-shadow:none"><b>Start over</b><p class="muted" style="margin:6px 0 12px">Resets name, look, pages and AI choices to the defaults. Your music, backgrounds, notes and chats stay.</p>
             <div class="row"><label class="row" style="gap:8px"><input type="checkbox" id="rm-keys"> Also forget my API keys</label><span class="spacer"></span><button class="btn btn-danger btn-sm" type="button" id="reset">Reset settings</button></div></div>`)}
         ${card('about', 'Shortcuts & about', 'zap', `<dl class="kv">
@@ -66,6 +67,18 @@ export default {
     mountFolders($('#m-nf'), { kind: 'notes' });
     const stopTools = mountTools($('#m-tools'));
 
+    (async () => {
+      const box = $('#sc');
+      const st = await api('/api/shortcuts').catch(() => ({ supported: false }));
+      if (!st.supported || !box) return;
+      box.innerHTML = `<div class="label">Shortcuts</div>
+        <label class="row" style="justify-content:space-between"><span>${esc(appTitle())} on the Desktop</span><span class="switch"><input type="checkbox" id="sc-d" ${st.desktop ? 'checked' : ''}><span></span></span></label>
+        <label class="row" style="justify-content:space-between"><span>${esc(appTitle())} in the Start menu</span><span class="switch"><input type="checkbox" id="sc-s" ${st.startMenu ? 'checked' : ''}><span></span></span></label>
+        <p class="help" style="margin:0">To remove HQ: turn both off, close HQ, then delete the HQ folder you unzipped (and, if you want, your data folder above).</p>`;
+      const set = () => api('/api/shortcuts', { method: 'POST', body: { desktop: $('#sc-d').checked, startMenu: $('#sc-s').checked } }).then(() => toast('Saved', 'ok', 1200)).catch((e) => toast(e.message, 'err'));
+      $('#sc-d').addEventListener('change', set);
+      $('#sc-s').addEventListener('change', set);
+    })();
     const save = async (patch) => { try { await saveSettings(patch); toast('Saved', 'ok', 1200); } catch (e) { toast(e.message, 'err'); } };
     $('#mem').addEventListener('change', (e) => save({ folders: { claudeMemory: e.target.checked } }));
     $('#gh').addEventListener('change', (e) => save({ github: { user: e.target.value.trim() } }));

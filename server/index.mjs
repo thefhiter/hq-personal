@@ -13,6 +13,7 @@ import { mediaBus, initMedia, library, search as ytSearch, resolveLink, enqueue,
 import { termBus, cliStatus, listSessions, createSession, sessionSnapshot, writeSession, resizeSession, closeSession, closeAll } from './terminal.mjs';
 import { providerInfo, listModels, testProvider, listThreads, getThread, createThread, updateThread, deleteThread, stopThread, send as aiSend } from './ai.mjs';
 import { toolsBus, toolStatus, installTool } from './tools.mjs';
+import { shortcutStatus, setShortcuts, refreshShortcuts } from './shortcuts.mjs';
 import { timeline } from './timeline.mjs';
 
 const PORT = Number(process.env.HQ_PORT || 9120);
@@ -99,7 +100,7 @@ if ($p -and (Test-Path $p)) { $d.SelectedPath = $p }
 $o = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true; ShowInTaskbar = $false; WindowState = 'Minimized' }
 $o.Show(); $o.Hide()
 if ($d.ShowDialog($o) -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $d.SelectedPath }`;
-  const r = await run('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-Command', ps], { timeout: 10 * 60_000, env: { ...process.env, HQ_PICK_START: start ? expandHome(start) : HOME } });
+  const r = await run('powershell.exe', ['-NoProfile', '-STA', '-Command', ps], { timeout: 10 * 60_000, env: { ...process.env, HQ_PICK_START: start ? expandHome(start) : HOME } });
   return r.stdout.trim().split(/\r?\n/).pop() || null;
 }
 
@@ -124,6 +125,7 @@ route('POST', '/api/settings', async (req, res) => {
   const b = await body(req);
   const before = await getSettings();
   await updateSettings(b);
+  if (b.profile && before.profile.title !== (await getSettings()).profile.title) refreshShortcuts().catch(() => {});
   if (b.folders) { discover.clear(); commitActivity.clear?.(); timeline.clear?.(); }
   if (b.github) githubRepos.clear?.();
   if (JSON.stringify(before.folders) !== JSON.stringify((await getSettings()).folders)) vaultIndex.clear();
@@ -190,9 +192,14 @@ route('POST', '/api/brand/icon', async (req, res) => {
     offset += p.data.length;
   });
   await fs.mkdir(BRAND, { recursive: true });
-  await fs.writeFile(path.join(BRAND, 'app.ico'), Buffer.concat([header, dir, ...pngs.map((p) => p.data)]));
+  const ico = Buffer.concat([header, dir, ...pngs.map((p) => p.data)]);
+  // a new file name each time, so Windows shows the new icon instead of a cached one
+  for (const f of await fs.readdir(BRAND)) if (/^app-\w+\.ico$/.test(f)) await fs.rm(path.join(BRAND, f), { force: true });
+  await fs.writeFile(path.join(BRAND, `app-${Date.now().toString(36)}.ico`), ico);
+  await fs.writeFile(path.join(BRAND, 'app.ico'), ico);
   const big = pngs.sort((a, b2) => b2.size - a.size)[0];
   await fs.writeFile(path.join(BRAND, 'icon.png'), big.data);
+  refreshShortcuts().catch(() => {});
   ok(res, { ok: true });
 });
 
@@ -294,6 +301,10 @@ route('DELETE', '/api/youtube/account', async (req, res) => { await removeCookie
 // helper programs
 route('GET', '/api/tools', async (req, res) => ok(res, await toolStatus()));
 route('POST', '/api/tools/:id/install', async (req, res, { params }) => ok(res, await installTool(params.id)));
+
+// Desktop / Start-menu shortcuts (made only when the owner asks)
+route('GET', '/api/shortcuts', async (req, res) => ok(res, await shortcutStatus()));
+route('POST', '/api/shortcuts', async (req, res) => { const b = await body(req); ok(res, await setShortcuts({ desktop: b.desktop, startMenu: b.startMenu })); });
 
 // AI: providers, keys, chat, terminals, web apps
 route('GET', '/api/ai/providers', async (req, res) => ok(res, await providerInfo()));
@@ -438,6 +449,7 @@ server.listen(PORT, HOST, () => {
   console.log(`HQ is up → http://${HOST}:${PORT}  (data: ${DATA})`);
   enrichedProjects().then(() => commitActivity()).then(() => timeline()).catch(() => {});
   refreshSessions().catch(() => {});
+  refreshShortcuts().catch(() => {}); // keeps shortcuts right if the HQ folder was moved or updated
   setInterval(() => refreshSessions().catch(() => {}), 10 * 60_000).unref();
 });
 

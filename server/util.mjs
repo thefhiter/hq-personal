@@ -18,14 +18,20 @@ export const LOCAL = DATA;
 export const CLAUDE_PROJECTS_DIR = path.resolve(process.env.HQ_CLAUDE_DIR || path.join(HOME, '.claude', 'projects'));
 mkdirSync(DATA, { recursive: true });
 
-// Helper programs the app can install for you (Node runtime, yt-dlp, ffmpeg) go in <app>/runtime.
-export const RUNTIME = path.join(ROOT, 'runtime');
-export const RUNTIME_DIRS = [path.join(RUNTIME, 'bin'), path.join(RUNTIME, 'ffmpeg'), path.join(RUNTIME, 'node')];
+// Helper programs HQ installs on request (yt-dlp, FFmpeg) and AI terminal apps installed with npm
+// live in the data folder too, so they survive updates. The Node.js that runs HQ (bundled in the
+// package) comes first on PATH so `npm` is always found.
+export const RUNTIME = path.join(DATA, 'tools');
+export const NPM_PREFIX = path.join(DATA, 'npm');
+export const NODE_DIR = path.dirname(process.execPath);
+export const RUNTIME_DIRS = [path.join(RUNTIME, 'bin'), path.join(RUNTIME, 'ffmpeg'), NPM_PREFIX, NODE_DIR];
 {
   const sep = IS_WIN ? ';' : ':';
   const key = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') || 'PATH';
   const parts = String(process.env[key] || '').split(sep);
   process.env[key] = [...RUNTIME_DIRS.filter((d) => !parts.includes(d)), ...parts].join(sep);
+  // `npm install -g` from inside HQ goes to the data folder instead of the app folder.
+  if (!process.env.npm_config_prefix && !process.env.NPM_CONFIG_PREFIX) process.env.npm_config_prefix = NPM_PREFIX;
 }
 
 /** Expand "~/x" to an absolute path. */
