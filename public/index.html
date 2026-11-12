@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HQ</title>
+  <meta name="description" content="Your personal HQ: deep-work focus room, music, the AI you choose, projects and notes.">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="icon" id="favicon" href="data:,">
+  <script>
+    // Paint in the owner's colors before anything else loads (no flash of the default theme).
+    try {
+      const t = JSON.parse(localStorage.getItem('hq.theme') || 'null');
+      if (t) { document.documentElement.dataset.mode = t.mode; for (const k in t.vars) document.documentElement.style.setProperty(k, t.vars[k]); }
+    } catch {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/personal.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Focus Room background: two layers so clips crossfade; lives outside the pages so it never restarts. -->
+  <div id="stage" aria-hidden="true">
+    <div class="stage-ambient"></div>
+    <video id="bg-a" muted playsinline preload="auto"></video>
+    <video id="bg-b" muted playsinline preload="auto"></video>
+    <div class="stage-shade"></div>
+  </div>
+  <canvas id="embers" aria-hidden="true"></canvas>
+
+  <div class="shell">
+    <nav class="sidebar" aria-label="Main">
+      <a class="brand" href="#/" aria-label="Home">
+        <span class="brand-mark" id="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><b id="brand-title">HQ</b><small id="brand-name"></small></span>
+      </a>
+      <ul class="nav" id="nav"></ul>
+      <div class="nav-foot">
+        <section class="player" id="player" aria-label="Music player" hidden>
+          <div class="player-top">
+            <img class="player-art" id="pl-art" alt="" width="44" height="44">
+            <div class="player-meta"><b id="pl-title">—</b><span id="pl-sub"></span></div>
+          </div>
+          <div class="player-bar" id="pl-bar"><i></i></div>
+          <div class="player-ctrl">
+            <button type="button" id="pl-prev" aria-label="Previous song"><span class="ico" data-icon="prev"></span></button>
+            <button type="button" id="pl-play" class="main" aria-label="Play"></button>
+            <button type="button" id="pl-next" aria-label="Next song"><span class="ico" data-icon="skip"></span></button>
+            <button type="button" id="pl-shuffle" aria-label="Shuffle" aria-pressed="false"><span class="ico" data-icon="shuffle"></span></button>
+            <input type="range" id="pl-vol" min="0" max="1" step="0.01" aria-label="Volume">
+          </div>
+        </section>
+      </div>
+    </nav>
+
+    <div class="main-col">
+      <header class="topbar">
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Menu" aria-expanded="false"><span class="ico" data-icon="list"></span></button>
+        <h1 class="page-title" id="page-title">HQ</h1>
+        <div class="topbar-actions">
+          <button class="search-btn" id="open-palette" type="button" aria-keyshortcuts="Control+K">
+            <span class="ico" data-icon="search"></span><span>Search</span><kbd>Ctrl K</kbd>
+          </button>
+          <a class="mini-timer" id="mini-timer" href="#/focus" hidden>
+            <span class="ico" data-icon="flame"></span><span class="t">00:00</span>
+          </a>
+        </div>
+      </header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <audio id="music" preload="auto"></audio>
+
+  <div class="palette" id="palette" hidden role="dialog" aria-modal="true" aria-label="Search everything">
+    <div class="palette-box">
+      <div class="palette-input">
+        <span class="ico" data-icon="search"></span>
+        <input id="palette-input" type="text" placeholder="Jump to a page, project, note, song or action…" autocomplete="off" aria-label="Search">
+        <kbd>Esc</kbd>
+      </div>
+      <ul class="palette-list" id="palette-list" role="listbox"></ul>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

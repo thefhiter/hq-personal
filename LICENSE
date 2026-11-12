@@ -1,0 +1,18 @@
+HQ: Personal Edition
+Copyright (c) 2026 thefhiter. All rights reserved.
+
+This software is provided to the person who received it from the copyright holder,
+for their own use on their own computers.
+
+Without written permission from the copyright holder you may not:
+  - copy, share or redistribute the software (in whole or in part) to anyone else;
+  - sell, rent or sublicense it;
+  - remove or change this notice.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+Third-party components keep their own licenses (MIT): node-pty, xterm.js and the
+Anthropic TypeScript SDK, included in app\node_modules with their license files.
