@@ -6,13 +6,25 @@
 
 ## Download and install
 
-1. Download **`HQ-Personal-<version>-win-x64.zip`** from the [latest release](../../releases/latest).
-2. Unzip it and move the **`HQ`** folder somewhere it can stay (for example *Documents*).
-3. Double-click **`Start HQ.cmd`** inside it.
-   If Windows shows *“Windows protected your PC”*, click **More info → Run anyway**.
-4. HQ opens and a two-minute setup makes it yours. On the last step it can put HQ, with **your** logo, on the Desktop and in the Start menu.
+1. Download **`HQ-Personal-Setup-<version>.exe`** from the [latest release](../../releases/latest).
+   If the browser says the file *isn't commonly downloaded*, choose **Keep** (in Edge: **⋯ → Keep → Keep anyway**).
+2. Open it. If Windows shows *“Windows protected your PC”*, click **More info → Run anyway**.
+3. Click **Next** through the setup (no admin rights needed) and keep **Open HQ now** ticked.
+4. A window says *“Starting HQ…”*, then HQ opens and a two-minute setup makes it yours.
+   The first start after installing can take up to a minute while Windows checks the new files.
 
-Nothing is installed into Windows: no installer, no admin rights, no registry changes, no background service. HQ runs from its folder with the Node.js included in `runtime\node` (the official build, signed by the OpenJS Foundation).
+| | |
+|---|---|
+| ![Setup: welcome](docs/screenshots/setup-welcome.png) | ![Setup: finished](docs/screenshots/setup-finish.png) |
+
+The setup installs HQ for the current Windows user in `%LOCALAPPDATA%\Programs\HQ`, adds it to the Start menu (and the Desktop if you leave that ticked) and to **Settings → Apps** for uninstalling. No admin rights, no service, nothing that starts with Windows. It speaks English, French or Arabic, following Windows.
+
+**Portable version:** `HQ-Personal-<version>-win-x64.zip` holds the same app as a folder. Right-click → **Extract All…**, then double-click **`Start HQ.cmd`** inside the extracted `HQ` folder (not inside the zip: Windows then unpacks only that one file and HQ can't start).
+
+### If HQ doesn't open
+- **It never fails silently.** If HQ can't start, a Notepad file *“HQ could not start”* opens with the reason and what to try. Send that file to whoever gave you HQ.
+- A small black window shows *“Starting HQ…”* for a few seconds and closes by itself: that's normal.
+- Antivirus asked about **node.exe** / *Node.js JavaScript Runtime*? Allow it: it's the engine HQ runs on (official build, signed by the OpenJS Foundation).
 
 ## Make it yours
 
@@ -92,17 +104,17 @@ A built-in **My notes** folder, plus any folder of Markdown notes (an **Obsidian
 - Optional: Git (project history), GitHub CLI (shows which projects are on GitHub), VS Code (open projects).
 
 ## Update and uninstall
-- **Update:** close HQ, replace the `HQ` folder with the new one, start it again. Your data, helper programs and AI terminal apps are kept (they live in `%LOCALAPPDATA%\HQ`), and the shortcuts follow the new folder.
-- **Remove:** Settings → Your data → turn off the shortcuts, close HQ, delete the `HQ` folder (and `%LOCALAPPDATA%\HQ` to delete your data too).
+- **Update:** run the new `HQ-Personal-Setup` over the old one. It closes HQ, replaces the app and keeps your data, helper programs and AI terminal apps (they live in `%LOCALAPPDATA%\HQ`). A running older HQ is replaced the next time you open HQ. The setup also cleans up HQ 1.0.0 (the retired script installer) and its old shortcuts.
+- **Uninstall:** Windows **Settings → Apps → Installed apps → HQ Personal Edition → Uninstall**. It removes the app and its shortcuts (whatever name you gave them), then asks whether to delete your data too (**No** keeps it for a later install).
+- **Portable zip:** close HQ and replace or delete the `HQ` folder (and `%LOCALAPPDATA%\HQ` to delete your data too).
 
 ## Antivirus
 HQ is built to look like what it is, a normal app:
-- **No installer script.** No PowerShell, no VBScript, no hidden windows; nothing is downloaded or unpacked at install time.
-- **`Start HQ.cmd` only runs the bundled `node.exe`**, which is digitally signed by the OpenJS Foundation.
-- Shortcuts are made only when the owner asks, by HQ itself (no script host).
-- The release build checks Node.js against nodejs.org's checksums and its signature.
+- **A standard setup program** ([Inno Setup](https://jrsoftware.org/isinfo.php)), per-user. No PowerShell, no VBScript, no hidden script windows; nothing is downloaded or unpacked by scripts.
+- **Everything runs with the bundled `node.exe`**, which is digitally signed by the OpenJS Foundation. The release build checks it against nodejs.org's checksums and its signature.
+- Each release is scanned with Microsoft Defender before it's published.
 
-HQ itself is not code-signed, so Windows SmartScreen shows *“Windows protected your PC”* the first time (**More info → Run anyway**). Some antivirus programs are wary of **yt-dlp** (a popular free tool HQ downloads on request for music): if one removes it, HQ says so; allow it in the antivirus and press Install again. A code-signing certificate would remove the SmartScreen prompt entirely.
+HQ's own setup is not code-signed, so Windows SmartScreen shows *“Windows protected your PC”* the first time (**More info → Run anyway**). Some antivirus programs are wary of **yt-dlp** (a popular free tool HQ downloads on request for music): if one removes it, HQ says so; allow it in the antivirus and press Install again. A code-signing certificate would remove the SmartScreen prompt entirely.
 
 ## For developers
 
@@ -110,8 +122,10 @@ HQ itself is not code-signed, so Windows SmartScreen shows *“Windows protected
 npm install
 npm start               # http://127.0.0.1:9120
 npm test                # smoke test against the running app
-npm run release         # dist\HQ-Personal-<version>-win-x64.zip
+npm run release         # dist\HQ-Personal-Setup-<version>.exe + dist\HQ-Personal-<version>-win-x64.zip
 ```
+
+`npm run release` needs [Inno Setup 6.7+](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`) and Chrome or Edge (it renders the setup's images from `installer/art/*.html`).
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -121,6 +135,7 @@ npm run release         # dist\HQ-Personal-<version>-win-x64.zip
 
 ```
 server/      Node HTTP server, no framework
+  main.mjs     entry: listens at once and shows "Starting HQ…" while the app loads
   index.mjs    routes, static files, security guard
   config.mjs   settings + API keys, validation, AI provider list
   ai.mjs       chat: Anthropic SDK for Claude, OpenAI-compatible API for the rest
@@ -133,12 +148,14 @@ public/      the page (vanilla JS modules, no build step)
   js/lib/theme.js        themes, palette from any color, logo marks, icon renderer
   js/lib/personalize.js  setup + settings building blocks
   js/views/              one file per page (welcome, home, focus, music, ai, …)
-launcher.mjs starts the server in the background and opens the app window (used by Start HQ.cmd and the shortcuts)
-scripts/     build-release.ps1 (package + bundled Node.js), make-icon.mjs, smoke.mjs
+launcher.mjs starts the server in the background and opens the app window (used by the shortcuts and Start HQ.cmd);
+             replaces an older running HQ; explains any failure in a Notepad file; --stop stops HQ
+installer/   hq-personal.iss (Inno Setup script), art/ (setup images, rendered from HTML)
+scripts/     build-release.ps1 (setup + zip with bundled Node.js), build-installer-art.mjs, make-icon.mjs, smoke.mjs
 ```
 
 ## Third-party software
-HQ uses [node-pty](https://github.com/microsoft/node-pty) and [xterm.js](https://xtermjs.org/) (MIT), the [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) (MIT), and the Barlow and JetBrains Mono fonts from Google Fonts. On request it downloads [Node.js](https://nodejs.org/), [yt-dlp](https://github.com/yt-dlp/yt-dlp) and an [FFmpeg build](https://github.com/yt-dlp/FFmpeg-Builds) from their official sources; they are not bundled. Downloading from YouTube is subject to YouTube's terms and to copyright: use it for content you have the right to save.
+HQ uses [node-pty](https://github.com/microsoft/node-pty) and [xterm.js](https://xtermjs.org/) (MIT), the [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) (MIT), and the Barlow and JetBrains Mono fonts from Google Fonts. It ships with the official [Node.js](https://nodejs.org/) runtime (MIT) and is installed with [Inno Setup](https://jrsoftware.org/isinfo.php). On request it downloads [yt-dlp](https://github.com/yt-dlp/yt-dlp) and an [FFmpeg build](https://github.com/yt-dlp/FFmpeg-Builds) from their official sources; they are not bundled. Downloading from YouTube is subject to YouTube's terms and to copyright: use it for content you have the right to save.
 
 ## License
 Copyright © 2026 thefhiter. All rights reserved. See [LICENSE](LICENSE).

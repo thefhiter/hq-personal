@@ -74,7 +74,9 @@ export default {
       box.innerHTML = `<div class="label">Shortcuts</div>
         <label class="row" style="justify-content:space-between"><span>${esc(appTitle())} on the Desktop</span><span class="switch"><input type="checkbox" id="sc-d" ${st.desktop ? 'checked' : ''}><span></span></span></label>
         <label class="row" style="justify-content:space-between"><span>${esc(appTitle())} in the Start menu</span><span class="switch"><input type="checkbox" id="sc-s" ${st.startMenu ? 'checked' : ''}><span></span></span></label>
-        <p class="help" style="margin:0">To remove HQ: turn both off, close HQ, then delete the HQ folder you unzipped (and, if you want, your data folder above).</p>`;
+        <p class="help" style="margin:0">${st.installed
+          ? 'To remove HQ: Windows Settings → Apps → Installed apps → HQ Personal Edition → Uninstall. It asks whether to keep your data.'
+          : 'To remove HQ: turn both off, close HQ, then delete the HQ folder you unzipped (and, if you want, your data folder above).'}</p>`;
       const set = () => api('/api/shortcuts', { method: 'POST', body: { desktop: $('#sc-d').checked, startMenu: $('#sc-s').checked } }).then(() => toast('Saved', 'ok', 1200)).catch((e) => toast(e.message, 'err'));
       $('#sc-d').addEventListener('change', set);
       $('#sc-s').addEventListener('change', set);

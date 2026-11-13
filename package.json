@@ -1,6 +1,6 @@
 {
   "name": "hq-personal",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "HQ Personal Edition: a personal command center you make your own — your name, theme, logo and pages; a deep-work focus room with HD backgrounds; music from YouTube as MP3; and the AI you choose (ChatGPT, Claude, Gemini and more).",
   "type": "module",
   "private": true,
@@ -10,8 +10,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server/index.mjs",
-    "check": "node --check server/index.mjs",
+    "start": "node server/main.mjs",
+    "check": "node --check server/main.mjs && node --check server/index.mjs && node --check launcher.mjs",
     "test": "node scripts/smoke.mjs",
     "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
   },

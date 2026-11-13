@@ -132,7 +132,12 @@ export default {
             <li>Settings → Data lets you export your setup or start over.</li>
           </ul></section>`;
       }
-      if (id === 'done') api('/api/shortcuts').then((st) => { if (st.supported && $('#sc-card')) $('#sc-card').hidden = false; }).catch(() => {});
+      if (id === 'done') api('/api/shortcuts').then((st) => {
+        if (!st.supported || !$('#sc-card')) return;
+        // installed: start from what the setup program made (it already asked about the Desktop)
+        if (st.installed) { $('#sc-d').checked = st.desktop; $('#sc-s').checked = st.startMenu; $('#sc-card').dataset.installed = '1'; }
+        $('#sc-card').hidden = false;
+      }).catch(() => {});
       root.querySelector('.wiz-main').scrollTop = 0;
       history.replaceState(null, '', `#/welcome?step=${step}`);
     }
@@ -140,7 +145,7 @@ export default {
     async function finish() {
       $('#next').disabled = true;
       const d = $('#sc-d'), sm = $('#sc-s');
-      if (d && !$('#sc-card').hidden && (d.checked || sm.checked)) await api('/api/shortcuts', { method: 'POST', body: { desktop: d.checked, startMenu: sm.checked } }).catch(() => {});
+      if (d && !$('#sc-card').hidden && (d.checked || sm.checked || $('#sc-card').dataset.installed)) await api('/api/shortcuts', { method: 'POST', body: { desktop: d.checked, startMenu: sm.checked } }).catch(() => {});
       await saveSettings({ setupDone: true });
       location.hash = '#/';
     }

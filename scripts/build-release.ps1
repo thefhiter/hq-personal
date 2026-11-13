@@ -1,10 +1,12 @@
-# Builds the downloadable package: dist\HQ-Personal-<version>-win-x64.zip
-#   HQ\
-#     Start HQ.cmd          <- double-click (runs only the bundled, signed node.exe)
-#     READ ME FIRST.txt
-#     runtime\node\         <- official Node.js LTS (checksum + signature verified at build time)
-#     app\                  <- HQ itself (server, page, production node_modules)
-# No installer script, no PowerShell, no downloads at install time: nothing that looks like a dropper.
+# Builds the two downloads:
+#   dist\HQ-Personal-Setup-<version>.exe   <- the setup program (Inno Setup, per-user, no admin rights)
+#   dist\HQ-Personal-<version>-win-x64.zip <- the same files as a portable folder:
+#     HQ\
+#       Start HQ.cmd          <- double-click (runs only the bundled, signed node.exe)
+#       READ ME FIRST.txt
+#       runtime\node\         <- official Node.js LTS (checksum + signature verified at build time)
+#       app\                  <- HQ itself (server, page, production node_modules)
+# No PowerShell, VBScript or downloads at install time: nothing that looks like a dropper.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $PSScriptRoot
@@ -57,25 +59,42 @@ Remove-Item (Join-Path $out 'runtime\node\CHANGELOG.md'), (Join-Path $out 'runti
 Set-Content -Path (Join-Path $out 'Start HQ.cmd') -Encoding ASCII -Value @'
 @echo off
 rem Starts HQ with the Node.js that comes with it (runtime\node, signed by the OpenJS Foundation).
+title HQ
+if not exist "%~dp0runtime\node\node.exe" goto unzip
+if not exist "%~dp0app\launcher.mjs" goto unzip
 cd /d "%~dp0app"
-if exist "%~dp0runtime\node\node.exe" (
-  start "HQ" /min "%~dp0runtime\node\node.exe" launcher.mjs
-) else (
-  start "HQ" /min node launcher.mjs
-)
+"%~dp0runtime\node\node.exe" launcher.mjs
+exit /b
+:unzip
+echo.
+echo   HQ can't start from inside the zip file.
+echo.
+echo   1. Close this window.
+echo   2. Right-click the HQ zip file and choose "Extract All...".
+echo   3. Open the extracted "HQ" folder and double-click "Start HQ.cmd" there.
+echo.
+echo   Easier: use HQ-Personal-Setup.exe instead. It installs HQ like any other app.
+echo.
+pause
 '@
 
 Set-Content -Path (Join-Path $out 'READ ME FIRST.txt') -Encoding UTF8 -Value @"
-HQ - Personal Edition $($pkg.version)
+HQ - Personal Edition $($pkg.version) (portable folder)
 ==================================
 
-Start
-  1. Unzip this file. Move the "HQ" folder somewhere it can stay
+The easiest way to get HQ is HQ-Personal-Setup-$($pkg.version).exe from the same download page:
+it installs HQ like any other app (Start menu, Desktop, uninstall from Settings > Apps).
+
+This zip is the portable version, for when you'd rather not install anything:
+  1. Right-click the zip and choose "Extract All...". Move the "HQ" folder somewhere it can stay
      (for example Documents) - HQ runs from this folder.
+     Don't start it from inside the zip: Windows then only unpacks one file and HQ can't start.
   2. Open the folder and double-click "Start HQ.cmd".
      - If Windows shows "Windows protected your PC", click "More info" then "Run anyway".
-  3. HQ opens. A short setup asks for your name, colors, logo, pages, your AI and YouTube,
-     and can put HQ on your Desktop and in the Start menu.
+  3. A window shows "Starting HQ..." and HQ opens (the very first start can take up to a minute
+     while Windows checks the files). A short setup asks for your name, colors, logo, pages,
+     your AI and YouTube, and can put HQ on your Desktop and in the Start menu.
+  If HQ can't start, a Notepad file opens with the reason. Send it to the person who gave you HQ.
 
 Nothing is installed in Windows: no admin rights, no registry changes, no background service.
 HQ runs with the Node.js included in runtime\node (official build, signed by the OpenJS Foundation).
@@ -102,3 +121,18 @@ Remove-Item $zip -Force -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) { throw 'zip failed' }
 $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
 Write-Output "Built $zip ($mb MB) with Node.js $ver"
+
+# ---- setup program (Inno Setup 6.7+: winget install JRSoftware.InnoSetup) ----
+$iscc = @(
+  (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
+  (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+  (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) { throw 'Inno Setup 6 is not installed (winget install JRSoftware.InnoSetup)' }
+& node (Join-Path $root 'scripts\build-installer-art.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'rendering the installer images failed' }
+& $iscc /Q "/DAppVersion=$($pkg.version)" "/DSourceDir=$out" (Join-Path $root 'installer\hq-personal.iss')
+if ($LASTEXITCODE -ne 0) { throw 'building the setup program failed' }
+$setup = Join-Path $dist "HQ-Personal-Setup-$($pkg.version).exe"
+$mb = [math]::Round((Get-Item $setup).Length / 1MB, 1)
+Write-Output "Built $setup ($mb MB)"

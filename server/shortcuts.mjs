@@ -7,7 +7,10 @@ import { ROOT, DATA, IS_WIN, readJson, writeJson, run } from './util.mjs';
 import { getSettings } from './config.mjs';
 
 const STATE = path.join(DATA, 'shortcuts.json');
+const LIST = path.join(DATA, 'shortcuts.txt'); // plain list for the uninstaller (one .lnk per line)
 const LAUNCHER = path.join(ROOT, 'launcher.mjs');
+/** Installed with HQ-Personal-Setup (the uninstaller sits next to the app folder). */
+export const INSTALLED = IS_WIN && existsSync(path.join(ROOT, '..', 'unins000.exe'));
 
 /** Shell item ID list for a local path: My Computer → drive → one item per folder/file. */
 function idList(target) {
@@ -38,7 +41,7 @@ function idList(target) {
   return Buffer.concat([size, body]);
 }
 
-/** Build a .lnk file: target + arguments + working folder + icon, shown minimized. */
+/** Build a .lnk file: target + arguments + working folder + icon. */
 export function buildLnk({ target, args = '', workingDir = '', icon = '', description = '' }) {
   const u16 = (s) => Buffer.from(String(s), 'utf16le');
   const str = (s) => { const b = u16(s); const n = Buffer.alloc(2); n.writeUInt16LE(b.length / 2); return Buffer.concat([n, b]); };
@@ -50,7 +53,9 @@ export function buildLnk({ target, args = '', workingDir = '', icon = '', descri
   h.writeUInt32LE(FLAGS, 20);
   h.writeUInt32LE(0x20, 24); // FILE_ATTRIBUTE_ARCHIVE
   h.writeUInt32LE(0, 56); // icon index
-  h.writeUInt32LE(7, 60); // SW_SHOWMINNOACTIVE: the small launcher window starts minimized
+  // SW_SHOWNORMAL. Not minimized: the browser inherits that state and would open HQ's window minimized,
+  // which looks like "nothing happens". The launcher's small window closes by itself after a few seconds.
+  h.writeUInt32LE(1, 60);
   // LinkInfo with a local base path (ANSI + Unicode so any folder name works)
   const ansi = Buffer.concat([Buffer.from(target.replace(/[^\x20-\x7e]/g, '?'), 'latin1'), Buffer.from([0])]);
   const uni = Buffer.concat([u16(target), Buffer.alloc(2)]);
@@ -92,7 +97,7 @@ const safeName = (s) => (String(s || 'HQ').replace(/[\\/:*?"<>|]/g, '').trim() |
 export async function shortcutStatus() {
   const st = await readJson(STATE, { files: [] });
   const files = (st.files || []).filter((f) => existsSync(f.path));
-  return { supported: IS_WIN, desktop: files.some((f) => f.where === 'desktop'), startMenu: files.some((f) => f.where === 'programs'), files };
+  return { supported: IS_WIN, installed: INSTALLED, desktop: files.some((f) => f.where === 'desktop'), startMenu: files.some((f) => f.where === 'programs'), files };
 }
 
 /** Create or remove the shortcuts. Names follow the app name the owner chose. */
@@ -114,6 +119,7 @@ export async function setShortcuts({ desktop, startMenu } = {}) {
     files.push({ where, path: file });
   }
   await writeJson(STATE, { files, target: process.execPath, launcher: LAUNCHER });
+  await fs.writeFile(LIST, files.map((f) => f.path).join('\r\n') + '\r\n', 'utf8');
   return shortcutStatus();
 }
 
@@ -132,6 +138,17 @@ async function currentIcon() {
 /** Re-point existing shortcuts after the icon, the app name or the HQ folder changed. */
 export async function refreshShortcuts() {
   if (!IS_WIN) return;
+  if (INSTALLED && !(await shortcutStatus()).files.length) await adoptInstallerShortcuts();
   const st = await shortcutStatus();
   if (st.files.length) await setShortcuts({});
+}
+
+/** First start after installing: take over the "HQ" shortcuts the setup program made, so they follow
+ *  the owner's app name and logo from now on (and the uninstaller removes them, whatever their name). */
+async function adoptInstallerShortcuts() {
+  const dirs = await shellFolders();
+  const files = [['desktop', path.join(dirs.desktop, 'HQ.lnk')], ['programs', path.join(dirs.programs, 'HQ.lnk')]]
+    .filter(([, p]) => existsSync(p)).map(([where, p]) => ({ where, path: p }));
+  if (!files.length) return;
+  await writeJson(STATE, { files, target: process.execPath, launcher: LAUNCHER, adopted: true });
 }

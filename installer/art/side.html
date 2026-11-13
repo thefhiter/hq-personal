@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Source of the setup wizard's side image. Rendered by scripts/build-installer-art.mjs (headless Chrome),
+     which passes the pixel size as ?w=&h= (headless windows can't be narrower than ~500 px, so the
+     design is laid out in a fixed box at the top-left instead of the viewport). -->
+<html><head><meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: transparent; }
+  .box {
+    --w: 164px; --h: 314px;
+    position: relative; width: var(--w); height: var(--h); overflow: hidden;
+    display: flex; flex-direction: column; align-items: center;
+    background:
+      radial-gradient(120% 55% at 50% 108%, rgba(255, 122, 26, 0.55), rgba(255, 122, 26, 0.12) 45%, transparent 70%),
+      radial-gradient(90% 40% at 50% 30%, rgba(255, 150, 60, 0.10), transparent 70%),
+      #0B0907;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    color: #F6EFE9;
+  }
+  .mark { margin-top: calc(var(--h) * 0.25); width: calc(var(--w) * 0.46); height: calc(var(--w) * 0.46); border-radius: 22%;
+          box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 calc(var(--h) * 0.024) calc(var(--h) * 0.06) rgba(255, 110, 20, 0.35); }
+  .word { margin-top: calc(var(--h) * 0.055); font-size: calc(var(--w) * 0.134); font-weight: 700; letter-spacing: 0.04em; line-height: 1; }
+  .sub { margin-top: calc(var(--h) * 0.016); font-size: calc(var(--w) * 0.058); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #FFB27A; white-space: nowrap; }
+  .line { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--h) * 0.009); background: linear-gradient(90deg, #FF5A0A, #FF9A3C, #FFC56B); }
+</style></head>
+<body>
+  <div class="box" id="box">
+    <img class="mark" src="../../public/assets/icon-256.png" alt="">
+    <div class="word">HQ</div>
+    <div class="sub">Personal Edition</div>
+    <div class="line"></div>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    if (q.get('w')) document.getElementById('box').style.setProperty('--w', q.get('w') + 'px');
+    if (q.get('h')) document.getElementById('box').style.setProperty('--h', q.get('h') + 'px');
+  </script>
+</body></html>

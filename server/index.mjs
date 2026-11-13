@@ -1,4 +1,3 @@
-import http from 'node:http';
 import { promises as fs, createReadStream } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -83,7 +82,7 @@ async function openAppWindow(url) {
   const pref = (await getSettings()).ai.browser;
   const order = pref === 'edge' ? ['edge', 'chrome'] : ['chrome', 'edge'];
   const exe = pref === 'default' ? null : order.flatMap((b) => BROWSERS[b]).find((f) => f && exists(f));
-  if (exe) openDetached(exe, [`--app=${url}`, '--window-size=1280,900']);
+  if (exe) openDetached(exe, [`--app=${url}`, '--start-maximized']); // a fixed size can overflow a laptop screen
   else if (IS_WIN) openDetached(process.env.ComSpec || 'cmd.exe', ['/c', 'start', '', url]);
   else openDetached('xdg-open', [url]);
 }
@@ -117,7 +116,9 @@ const route = (method, pattern, handler) => {
   routes.push({ method, re, keys, handler });
 };
 
-route('GET', '/api/health', (req, res) => ok(res, { ok: true, name: 'hq-personal', version: PKG.version, time: new Date().toISOString() }));
+route('GET', '/api/health', (req, res) => ok(res, { ok: true, name: 'hq-personal', version: PKG.version, ready: true, time: new Date().toISOString() }));
+// Stops HQ (the setup program calls it before updating or removing HQ; POST + X-HQ, so web pages can't).
+route('POST', '/api/app/quit', (req, res) => { ok(res, { ok: true }); setTimeout(() => process.exit(0), 150); });
 
 // settings & personalization
 route('GET', '/api/settings', async (req, res) => ok(res, await publicSettings()));
@@ -414,7 +415,8 @@ async function serveStatic(req, res, pathname) {
   return sendFile(req, res, file);
 }
 
-const server = http.createServer(async (req, res) => {
+/** Handles every request once HQ has loaded (server/main.mjs owns the listening socket). */
+export async function handle(req, res) {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   const blocked = guard(req);
   if (blocked) return fail(res, 403, blocked);
@@ -436,21 +438,20 @@ const server = http.createServer(async (req, res) => {
     if (!res.headersSent) fail(res, e.status || 500, e.message);
     else res.end();
   }
-});
+}
 
-await Promise.all([initTimer(), initMedia()]);
-process.on('exit', closeAll);
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(0));
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') { console.error(`Port ${PORT} is busy — HQ is probably already running.`); process.exit(1); }
-  throw e;
-});
-server.listen(PORT, HOST, () => {
-  console.log(`HQ is up → http://${HOST}:${PORT}  (data: ${DATA})`);
+/** Loads saved state before the first request is handed over. */
+export async function start() {
+  await Promise.all([initTimer(), initMedia()]);
+  process.on('exit', closeAll);
+}
+
+/** Background work once HQ is serving. */
+export function afterListen() {
   enrichedProjects().then(() => commitActivity()).then(() => timeline()).catch(() => {});
   refreshSessions().catch(() => {});
   refreshShortcuts().catch(() => {}); // keeps shortcuts right if the HQ folder was moved or updated
   setInterval(() => refreshSessions().catch(() => {}), 10 * 60_000).unref();
-});
+}
 
-export { PROVIDERS };
+export { PROVIDERS, DATA };
